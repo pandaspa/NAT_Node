@@ -54,7 +54,8 @@ main "$@"
 | `ask` | 交互读取,答案放全局 `ANSWER` | **始终从 `/dev/tty` 读**,这是管道安装能交互的关键 |
 | `parse_ports` | `20000` 或 `20000-20050` → `P_A`/`P_B` | 校验范围与大小关系 |
 | `detect_ip` | 4 个公网 API 轮询探测 IPv4 | 非 IPv4 返回失败 |
-| `detect_if` | 默认路由网卡名 | 供 DNAT 规则 `-i` 限定 |
+| `detect_if` | 默认路由网卡名 | 供 DNAT 规则 `-i` 限定
+`urlencode` | URL 编码(awk 实现,按字节) | 节点名称拼 `#fragment` 用;`LC_ALL=C` 保证中文/emoji 按字节逐个编码,纯 busybox 环境可用 |
 | `download_binary` | 按序尝试: GH_PROXY → 直连 → MIRRORS | 下载后跑 `version` 验证可执行 |
 | `place_binary` | HY2_BIN 离线复制 或 download_binary | mktemp 中转再 mv |
 | `gen_cert` | EC P-256 自签,CN+SAN=bing.com,10 年 | 已存在直接复用 |
@@ -101,7 +102,7 @@ main "$@"
 | `/etc/init.d/hysteria` | OpenRC 服务 | 755 |
 | `/etc/conf.d/hysteria` | 服务环境变量 | 644 |
 
-`.env` 字段:`PUBLIC_IP`(客户端连接地址,与出口 IP 可以不同)、`PUBLIC_PORT`(主端口)、`PORT_RANGE`(空=单端口,`a-b`=有段)、`LISTEN_PORT`、`PASSWORD`、`SNI`、`OBFUS`(on/off)、`OBFUS_PASSWORD`。
+`.env` 字段:`PUBLIC_IP`(客户端连接地址,与出口 IP 可以不同)、`PUBLIC_PORT`(主端口)、`PORT_RANGE`(空=单端口,`a-b`=有段)、`LISTEN_PORT`、`NODE_NAME`(节点备注名,链接 `#fragment`,默认 `IP:端口`)、`PASSWORD`、`SNI`、`OBFUS`(on/off)、`OBFUS_PASSWORD`。
 
 **conf.d 与 .env 的端口语法不同,勿混用**:conf.d 里 `HY2_DNAT_PORTS` 是 iptables 范围语法(冒号 `20000:20050`),.env 里 `PORT_RANGE` 是给人看的连字符 `20000-20050`。转换在 `write_confd()`。
 
@@ -143,6 +144,7 @@ init 脚本(`write_init` 的 heredoc)要点:单引号 heredoc(`<<'ICEOF'`)保证
 |---|---|
 | 2026-10-29 | 初版。验证过:官方 latest 下载链(当时 v2.13.0)、gh-proxy.com 与 ghfast.top 镜像可用;**ghproxy.net 已失效被弃用**——镜像挂了是常态,报"所有下载源失败"时先查 MIRRORS 存活 |
 | 2026-10-29 | 首轮自查修复:①重配置时旧 DNAT 规则残留 → apply_config 先 stop 再写文件;②下载源顺序 GH_PROXY 优先;③证书补 SAN;④iptables 改为按需安装;⑤菜单"重新配置"中途取消会整个退出脚本 → apply_config 改返回值,取消只回菜单 |
+| 2026-10-29 | 新增自定义节点名称:交互项+`HY2_NAME` 环境变量,存 `.env` 的 `NODE_NAME`,分享链接追加 `#<urlencode后的名称>`。urlencode 用 awk 按字节实现(已实测中文/emoji/`%`/`#`/空格输出正确,如 `香港-01 NAT` → `%E9%A6%99%E6%B8%AF-01%20NAT`)。改动函数:`urlencode`/`wizard_*`/`save_state`/`load_state_defaults`/`confirm_or_abort`/`show_info` |
 
 ## 9. 改完怎么验证
 

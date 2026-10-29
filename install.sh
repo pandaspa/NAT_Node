@@ -8,7 +8,7 @@
 #    批量安装:  HY2_PORT=20000 sh install.sh   (其余走默认值,环境变量见 README)
 #
 #  环境变量(全部可选,详见 README):
-#    HY2_IP / HY2_PORT / HY2_LISTEN / HY2_PASSWORD
+#    HY2_IP / HY2_PORT / HY2_LISTEN / HY2_PASSWORD / HY2_NAME(节点备注名)
 #    HY2_OBFUS=on / HY2_OBFUS_PASSWORD / HY2_DNAT=off
 #    HY2_BIN=/path/to/hysteria(离线安装) / GH_PROXY=https://xx/(下载加速)
 #
@@ -124,6 +124,17 @@ detect_ip() {
 
 detect_if() { # 默认路由网卡名
     ip route 2>/dev/null | sed -n 's/^default .*dev \([^ ][^ ]*\).*/\1/p' | head -n 1
+}
+
+# URL 编码(节点名称拼进分享链接 #fragment 用);LC_ALL=C 保证按字节处理,中文/空格都安全
+urlencode() { # $1 -> stdout
+    printf '%s' "$1" | LC_ALL=C awk 'BEGIN{
+        for(i=0;i<256;i++) h[sprintf("%c",i)]=sprintf("%%%02X",i)
+        for(i=48;i<=57;i++)  h[sprintf("%c",i)]=sprintf("%c",i)
+        for(i=65;i<=90;i++)  h[sprintf("%c",i)]=sprintf("%c",i)
+        for(i=97;i<=122;i++) h[sprintf("%c",i)]=sprintf("%c",i)
+        h["-"]="-"; h["."]="."; h["_"]="_"; h["~"]="~"
+    }{ n=length($0); for(i=1;i<=n;i++) printf "%s", h[substr($0,i,1)] }'
 }
 
 # ---------------------------- 安装动作 --------------------------------------
@@ -299,6 +310,7 @@ PUBLIC_IP="${PUBLIC_IP}"
 PUBLIC_PORT="${PUBLIC_PORT}"
 PORT_RANGE="${PORT_RANGE}"
 LISTEN_PORT="${LISTEN_PORT}"
+NODE_NAME="${NODE_NAME}"
 PASSWORD="${PASSWORD}"
 SNI="${SNI}"
 OBFUS="${OBFUS}"
@@ -348,13 +360,14 @@ restart_and_verify() {
 
 # ---------------------------- 配置向导 --------------------------------------
 load_state_defaults() {
-    D_IP=""; D_PORT=""; D_LISTEN=""; D_PASS=""; D_OBFUS="off"; D_OBFUS_PW=""
+    D_IP=""; D_PORT=""; D_LISTEN=""; D_PASS=""; D_NAME=""; D_OBFUS="off"; D_OBFUS_PW=""
     if [ -f "$STATE_FILE" ]; then
         # shellcheck disable=SC1090
         . "$STATE_FILE"
         D_IP="${PUBLIC_IP:-}"
         D_LISTEN="${LISTEN_PORT:-}"
         D_PASS="${PASSWORD:-}"
+        D_NAME="${NODE_NAME:-}"
         D_OBFUS="${OBFUS:-off}"
         D_OBFUS_PW="${OBFUS_PASSWORD:-}"
         if [ -n "${PORT_RANGE:-}" ]; then D_PORT="${PORT_RANGE}"; else D_PORT="${PUBLIC_PORT:-}"; fi
@@ -417,6 +430,10 @@ wizard_interactive() {
         OBFUS_PASSWORD=""
     fi
 
+    _dname="${D_NAME:-${PUBLIC_IP}:${PUBLIC_PORT}}"
+    ask "节点名称(客户端里显示的备注名)" "$_dname"
+    NODE_NAME="$ANSWER"
+
     [ -z "$D_PASS" ] && D_PASS="$(rand_pw)"
     ask "连接密码(回车=使用下方默认)" "$D_PASS"
     PASSWORD="$ANSWER"
@@ -435,6 +452,7 @@ wizard_batch() {
     valid_port "$LISTEN_PORT" || die "HY2_LISTEN 无效"
     PUBLIC_IP="${HY2_IP:-$(detect_ip)}" || die "无法探测公网 IP,请设置 HY2_IP"
     [ -n "$PUBLIC_IP" ] || die "无法探测公网 IP,请设置 HY2_IP"
+    NODE_NAME="${HY2_NAME:-${PUBLIC_IP}:${PUBLIC_PORT}}"
     PASSWORD="${HY2_PASSWORD:-$(rand_pw)}"
     OBFUS="off"
     case "${HY2_OBFUS:-}" in on|1|true|yes) OBFUS="on" ;; esac
@@ -456,6 +474,7 @@ wizard() {
 
 confirm_or_abort() {
     printf '\n'
+    printf '  节点名称  : %s\n' "$NODE_NAME"
     printf '  公网地址  : %s%s\n' "$PUBLIC_IP" "${PORT_RANGE:+:${PORT_RANGE}}"
     printf '  主端口    : %s\n' "$PUBLIC_PORT"
     [ -n "$PORT_RANGE" ] && printf '  端口跳跃  : %s\n' "$([ "$DNAT" -eq 1 ] && echo 开启 || echo 关闭)"
@@ -501,9 +520,12 @@ show_info() {
     _link="hy2://${PASSWORD}@${PUBLIC_IP}:${PUBLIC_PORT}/?insecure=1&sni=${SNI}"
     [ -n "${PORT_RANGE:-}" ] && _link="${_link}&mport=${PORT_RANGE}"
     [ "${OBFUS:-off}" = "on" ] && _link="${_link}&obfs=salamander&obfs-password=${OBFUS_PASSWORD}"
+    # 节点名称作为 #fragment,导入客户端后直接显示为备注名
+    _link="${_link}#$(urlencode "${NODE_NAME:-${PUBLIC_IP}:${PUBLIC_PORT}}")"
 
     printf '\n'
     printf '  ==================== 节点信息 ====================\n'
+    printf '  名称        : %s\n' "${NODE_NAME:-${PUBLIC_IP}:${PUBLIC_PORT}}"
     printf '  服务器      : %s\n' "$PUBLIC_IP"
     printf '  端口        : %s%s\n' "$PUBLIC_PORT" "${PORT_RANGE:+ (跳跃 ${PORT_RANGE})}"
     printf '  监听端口    : %s / UDP\n' "$LISTEN_PORT"
@@ -562,7 +584,7 @@ menu() {
         print_banner
         printf '  节点: %s (服务运行中可用 rc-service hysteria status 查看)\n' "$(hostname 2>/dev/null)"
         printf '\n'
-        printf '  1. 重新配置(端口/密码/obfs)\n'
+        printf '  1. 重新配置(名称/端口/密码/obfs)\n'
         printf '  2. 查看节点信息与分享链接\n'
         printf '  3. 重启服务\n'
         printf '  4. 服务状态\n'

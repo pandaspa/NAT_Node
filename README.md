@@ -13,13 +13,13 @@
 SSH 到 VPS 上以 root 执行:
 
 ```sh
-wget -qO- https://raw.githubusercontent.com/pandaspa/NAT_Node/main/install.sh | sh
+wget -qO- https://raw.githubusercontent.com/<你的用户名>/NAT_Node/main/install.sh | sh
 ```
 
 或者下载后运行:
 
 ```sh
-wget -O install.sh https://raw.githubusercontent.com/pandaspa/NAT_Node/main/install.sh
+wget -O install.sh https://raw.githubusercontent.com/<你的用户名>/NAT_Node/main/install.sh
 sh install.sh
 ```
 
@@ -34,6 +34,7 @@ sh install.sh
 | 内部监听端口 | 多数 NAT 商家是 1:1 映射,回车即可;商家映射规则不同时改成内网实际端口 |
 | 端口跳跃 | 给了一段端口时询问,开启后 iptables 把整段 UDP 转发到主端口,客户端可换端口抗封锁 |
 | obfs 混淆 | 默认关;运营商对 UDP QoS 严重时开启(salamander) |
+| 节点名称 | 导入客户端后显示的备注名,支持中文/emoji,默认 `IP:端口` |
 | 连接密码 | 回车自动生成随机强密码 |
 
 装完会输出分享链接,直接导入 NekoBox / sing-box / v2rayN 等客户端:
@@ -56,6 +57,7 @@ HY2_PORT=20000 sh install.sh
 | `HY2_IP` | 公网 IP/域名 | 自动探测 |
 | `HY2_LISTEN` | 内部监听端口 | = 公网主端口 |
 | `HY2_PASSWORD` | 连接密码 | 随机生成 |
+| `HY2_NAME` | 节点名称(客户端里显示的备注名,支持中文) | `IP:端口` |
 | `HY2_OBFUS` | `on` 开启 obfs | off |
 | `HY2_OBFUS_PASSWORD` | obfs 密码 | 随机生成 |
 | `HY2_DNAT` | `off` 关闭端口跳跃(给了端口段时默认开启) | on |
