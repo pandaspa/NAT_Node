@@ -13,13 +13,13 @@
 SSH 到 VPS 上以 root 执行:
 
 ```sh
-wget -qO- https://raw.githubusercontent.com/<你的用户名>/NAT_Node/main/install.sh | sh
+wget -qO- https://raw.githubusercontent.com/pandaspa/NAT_Node/main/install.sh | sh
 ```
 
 或者下载后运行:
 
 ```sh
-wget -O install.sh https://raw.githubusercontent.com/<你的用户名>/NAT_Node/main/install.sh
+wget -O install.sh https://raw.githubusercontent.com/pandaspa/NAT_Node/main/install.sh
 sh install.sh
 ```
 
